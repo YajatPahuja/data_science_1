@@ -1,0 +1,7 @@
+pandas
+numpy
+Topsis-Yajat-102303185
+flask
+pandas
+numpy
+python-dotenv
