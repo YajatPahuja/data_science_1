@@ -14,6 +14,7 @@ import re
 load_dotenv()
 
 app = Flask(__name__)
+os.makedirs('uploads', exist_ok=True)
 app.secret_key = os.getenv('SECRET_KEY', 'topsis_secret_key')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
