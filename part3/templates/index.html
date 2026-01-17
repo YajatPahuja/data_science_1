@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOPSIS Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 100px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"] {
+            width: 250px;
+            padding: 8px;
+            border: 1px solid #ccc;
+        }
+        input[type="file"] {
+            padding: 5px;
+        }
+        button {
+            background-color: #e89a3c;
+            color: white;
+            padding: 10px 30px;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #d08a2c;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash-message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+        }
+        .flash-message.success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .flash-message.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        td {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TOPSIS Analysis</h1>
+
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        <table>
+            <tr>
+                <td><label>File Name</label></td>
+                <td><input type="file" name="file" accept=".csv" required></td>
+            </tr>
+            <tr>
+                <td><label>Weights</label></td>
+                <td><input type="text" name="weights" placeholder="1,1,1,1" required></td>
+            </tr>
+            <tr>
+                <td><label>Impacts</label></td>
+                <td><input type="text" name="impacts" placeholder="+,+,-,+" required></td>
+            </tr>
+            <tr>
+                <td><label>Email Id</label></td>
+                <td><input type="email" name="email" placeholder="example@gmail.com" required></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><button type="submit">Submit</button></td>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>
