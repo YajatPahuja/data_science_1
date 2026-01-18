@@ -3,13 +3,10 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
+import resend
 import os
 import re
+import base64
 
 load_dotenv()
 
@@ -19,10 +16,13 @@ app.secret_key = os.getenv('SECRET_KEY', 'topsis_secret_key')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')
-SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
+# Resend API configuration
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+RESEND_FROM_EMAIL = os.getenv('RESEND_FROM_EMAIL', 'onboarding@resend.dev')  # Default Resend email for testing
+
+# Initialize Resend client
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -90,30 +90,80 @@ def topsis(input_file, weights_str, impacts_str):
     return df, None
 
 def send_email(receiver_email, file_path):
-    msg = MIMEMultipart()
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = receiver_email
-    msg['Subject'] = "TOPSIS Analysis Results"
-
-    body = "Please find attached your TOPSIS analysis results."
-    msg.attach(MIMEText(body, 'plain'))
-
-    with open(file_path, "rb") as attachment:
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(attachment.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename=result.csv")
-        msg.attach(part)
-
+    """
+    Send email with TOPSIS analysis results as attachment using Resend API.
+    
+    Args:
+        receiver_email: Email address to send results to
+        file_path: Path to the CSV file containing results
+        
+    Returns:
+        bool: True if email sent successfully, False otherwise
+    """
+    # Validate Resend API key is configured
+    if not RESEND_API_KEY:
+        print("Error: RESEND_API_KEY environment variable is not configured.")
+        return False
+    
+    # Validate receiver email format
+    if not validate_email(receiver_email):
+        print(f"Error: Invalid receiver email format: {receiver_email}")
+        return False
+    
+    # Validate file exists
+    if not os.path.exists(file_path):
+        print(f"Error: Result file not found: {file_path}")
+        return False
+    
     try:
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, receiver_email, msg.as_string())
-        server.quit()
-        return True
+        # Read the CSV file content for attachment (base64 encoded)
+        with open(file_path, "rb") as file:
+            file_content = file.read()
+            file_content_b64 = base64.b64encode(file_content).decode('utf-8')
+        
+        # Send email using Resend API (matching Resend example pattern)
+        params = {
+            "from": RESEND_FROM_EMAIL,
+            "to": receiver_email,
+            "subject": "TOPSIS Analysis Results",
+            "html": "<p>Please find attached your TOPSIS analysis results.</p>",
+            "attachments": [
+                {
+                    "filename": "result.csv",
+                    "content": file_content_b64
+                }
+            ]
+        }
+        
+        # Send email via Resend API
+        email_response = resend.Emails.send(params)
+        
+        # Handle response - Resend returns an object with 'id' attribute or dict with 'id' key
+        if email_response:
+            # Check if response has 'id' attribute (object) or 'id' key (dict)
+            email_id = None
+            if hasattr(email_response, 'id'):
+                email_id = email_response.id
+            elif isinstance(email_response, dict) and 'id' in email_response:
+                email_id = email_response['id']
+            
+            if email_id:
+                print(f"Email sent successfully to {receiver_email}. Email ID: {email_id}")
+                return True
+            else:
+                print(f"Warning: Email sent but no ID returned. Response: {email_response}")
+                # Still return True as email might have been sent
+                return True
+        else:
+            print(f"Error: No response from Resend API")
+            return False
+            
     except Exception as e:
-        print(f"Email error: {e}")
+        # Catch any other unexpected errors
+        error_msg = str(e)
+        print(f"Unexpected error sending email: {error_msg}")
+        import traceback
+        traceback.print_exc()
         return False
 
 @app.route('/', methods=['GET', 'POST'])
