@@ -98,22 +98,25 @@ def send_email(receiver_email, file_path):
         file_path: Path to the CSV file containing results
         
     Returns:
-        bool: True if email sent successfully, False otherwise
+        tuple: (success: bool, error_message: str or None)
     """
     # Validate Resend API key is configured
     if not RESEND_API_KEY:
-        print("Error: RESEND_API_KEY environment variable is not configured.")
-        return False
+        error_msg = "RESEND_API_KEY environment variable is not configured. Please set it in .env file or Railway variables."
+        print(f"Error: {error_msg}")
+        return False, error_msg
     
     # Validate receiver email format
     if not validate_email(receiver_email):
-        print(f"Error: Invalid receiver email format: {receiver_email}")
-        return False
+        error_msg = f"Invalid receiver email format: {receiver_email}"
+        print(f"Error: {error_msg}")
+        return False, error_msg
     
     # Validate file exists
     if not os.path.exists(file_path):
-        print(f"Error: Result file not found: {file_path}")
-        return False
+        error_msg = f"Result file not found: {file_path}"
+        print(f"Error: {error_msg}")
+        return False, error_msg
     
     try:
         # Read the CSV file content for attachment (base64 encoded)
@@ -149,22 +152,23 @@ def send_email(receiver_email, file_path):
             
             if email_id:
                 print(f"Email sent successfully to {receiver_email}. Email ID: {email_id}")
-                return True
+                return True, None
             else:
                 print(f"Warning: Email sent but no ID returned. Response: {email_response}")
                 # Still return True as email might have been sent
-                return True
+                return True, None
         else:
-            print(f"Error: No response from Resend API")
-            return False
+            error_msg = "No response from Resend API. Check your API key and network connection."
+            print(f"Error: {error_msg}")
+            return False, error_msg
             
     except Exception as e:
         # Catch any other unexpected errors
-        error_msg = str(e)
-        print(f"Unexpected error sending email: {error_msg}")
+        error_msg = f"Resend API error: {str(e)}"
+        print(f"Error: {error_msg}")
         import traceback
         traceback.print_exc()
-        return False
+        return False, error_msg
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -209,10 +213,14 @@ def index():
             result_path = os.path.join(app.config['UPLOAD_FOLDER'], 'result_' + filename)
             result_df.to_csv(result_path, index=False)
 
-            if send_email(email, result_path):
+            # Attempt to send email and get detailed error message
+            email_sent, error_msg = send_email(email, result_path)
+            
+            if email_sent:
                 flash('Results sent to your email successfully!')
             else:
-                flash('Error sending email. Please check email configuration.')
+                # Show detailed error message to help with debugging
+                flash(f'Error sending email: {error_msg}')
 
             os.remove(filepath)
             os.remove(result_path)
